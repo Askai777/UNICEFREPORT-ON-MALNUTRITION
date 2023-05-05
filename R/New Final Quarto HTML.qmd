@@ -1,0 +1,241 @@
+---
+title: "UNICEF REPORT ON MALNUTRITION AROUND THE WORLD"
+author: "Akshay Sawant"
+format: html
+date: April 30 2023
+output: html_document
+toc: true
+toc_float: true
+highlight: zenburn
+execute: 
+  echo: true
+  warning: false
+  message: false
+  code-line-numbers: true
+theme:
+  dark: darkly
+  light: Litera
+html_document:
+  fig_width: 7
+  fig_height: 6
+html:
+    code-fold: true
+    code-summary: "Show the code"
+---
+
+# **UNICEF'S Data on "Wasted, Overweight or Stunted" Indicator Report**
+
+## **Introduction**
+
+This report provides an overview of **UNICEF'S "Wasted, Overweight or Stunted"** indicator, which measures the prevalence of malnutrition among children under the age of five. This report includes four visualizations that showcase the data related to this indicator, along with an analysis of the data around the world.
+
+The "Wasted, Overweight or Stunted" indicator provides a comprehensive measure of malnutrition that takes into account both acute and chronic forms of malnutrition, as well as overnutrition. It is often used as an indicator of overall child health and well-being, as malnutrition can have serious long-term health effects on children, including impaired cognitive and physical development, increased risk of disease, and lower life expectancy.
+
+To better understand the data related to this indicator, several visualizations have been plotted to showcase the prevalence of malnutrition around the world.
+
+## **Top 20 Countries with the Highest Levels of Malnutrition**
+
+### **Overview**
+
+The first visualization shows the top 20 countries with the highest levels of malnutrition. The data reveals that the majority of these countries are located in Sub-Saharan Africa and South Asia. These regions also have the highest rates of poverty and the most limited access to basic healthcare and nutrition services.
+
+### **Results of Visualization-01** 
+
+-   Niger
+-   Malawi
+-   Peru
+-   Mali
+-   Burkina Faso
+-   Chad
+-   Bangladesh
+-   Tanzania, United Republic of
+-   Rwanda
+-   Nepal
+-   Uganda
+-   Nigeria
+-   Central African Republic
+-   Zambia
+-   Senegal
+-   Jamaica
+-   Burundi
+-   Mauritania
+-   Guatemala
+-   Yemen
+
+### **Visualization-01**
+
+```{r}
+#| code-fold: true
+#| code-summary: "CLICK TO SEE THE CODE"
+
+# Load the required libraries
+library(tidyverse)
+library(sf)
+library(rnaturalearth)
+library(lwgeom)
+library(dplyr)
+
+# Import the unicef_indicator_2.csv file
+data <- read_csv("unicef_indicator_2.csv")
+
+# Clean and transform the data
+clean_data <- data %>%
+  drop_na() %>%
+  filter(!is.na(obs_value) & obs_value >= 0)
+
+# Filter for the top 20 countries with the highest obs_value
+top_20 <- clean_data %>%
+  group_by(country) %>%
+  summarise(obs_value = sum(obs_value)) %>%
+  top_n(20, obs_value)
+
+# Load World Map dataset and make the geometry valid
+world_map <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf") %>%
+  st_make_valid()
+
+# Create a lookup table to map country names to ISO A3 codes and join with top_20
+top_20 <- top_20 %>%
+  left_join(world_map %>% select(iso_a3, name_long) %>% distinct(), by = c("country" = "name_long"))
+
+# Merge world_map and top_20 data frames
+merged_data <- left_join(world_map, top_20, by = "iso_a3")
+
+# Plot 20 countries with the highest obs_value
+world_map_chart <- ggplot() +
+  geom_sf(data = merged_data, aes(fill = obs_value), color = "white") +
+  scale_fill_continuous(low = "blue", high = "red", na.value = "lightgreen", name = "Obs Value") +
+  labs(title = "Top 20 Countries with the Highest Level of Malnutrition") +
+  theme_bw()
+
+#View the Map 
+world_map_chart
+
+
+```
+
+![World map](Rplot-Map%20top%2020.png)
+
+## **Countries with the Lowest Levels of Malnutrition**
+
+### **Overview**
+
+This visualization shows the 15 countries with the lowest levels of malnutrition. These countries are primarily located in Europe and North America and have strong economies and high levels of access to healthcare and nutrition services.The GDP and life expectancy is seen to be better as compared to the countries having high number of Malnutrition.
+
+### **Visualization-02**
+
+```{r}
+#| code-fold: true
+#| code-summary: "CLICK TO SEE THE CODE"
+
+# Filter for the bottom 15 countries with the lowest obs_value
+bottom_15 <- clean_data %>%
+  group_by(country) %>%
+  summarise(total_obs_value = sum(obs_value)) %>%
+  ungroup() %>%
+  slice_min(order_by = total_obs_value, n = 15)
+
+
+# Bar chart: Countries with the lowest  mean prevalence of Malnutrition
+bar_chart <- ggplot(bottom_15, aes(x = reorder(country, total_obs_value), y = total_obs_value)) +
+  geom_bar(stat = "identity", fill = "green") +
+  coord_flip() +
+  labs(title = "Countries with the Lowest Mean Prevalence of Malnutrition around World",
+       x = "Country",
+       y = "Malnutrition Prevalence (%)") +
+  theme_bw()
+bar_chart
+
+```
+
+![Bar graph](Rplot-Bar%20graph.png)
+
+The countries with high problem of malnutrition and the counties of less problem of Malnutrition share some link with their Population,Life expectancy and Financial status of the country.
+
+So to find the link, further data was analyzed to dig deep in the statistics.
+
+The Impact on malnutrition status can be analyzed by observing the Time Series plot of underdeveloping countries over last few decades.Below Section will highlight the result and findings.
+
+## **TIME TRAVEL THROUGH DATA**
+
+### **Overview**
+
+The third visualization is a time series that shows the trend in malnutrition prevalence over time for underdeveloped and developing countries. The data reveals that malnutrition rates have been decreasing globally over the past few decades, but there is still significant work to be done, particularly in underdeveloped regions. The lack of resources and weak economic situation are the major causes behind the dire result of multutrition cases in these countries.
+
+### **Results of Visualization-03**
+
+-   Albania
+-   Algeria
+-   Amenia
+-   Bangladesh
+-   Bolivia
+-   India
+
+### **Visualization-03**
+
+```{r}
+#| code-fold: true
+#| code-summary: "CLICK TO SEE THE CODE"
+
+unicef_metadata <- read.csv("unicef_metadata.csv")
+data_selected <- unicef_metadata %>%
+  select(country, Population..total, Life.expectancy.at.birth..total..years. )
+
+# Load the clean data and add a row number column
+
+clean_data$id <- 1:nrow(clean_data)
+
+# Join the two datasets on the row number column
+data_combined <- left_join(data_selected, clean_data, by = "country",relationship = "many-to-many")
+
+# Filter the data to the desired time periods for Countries 
+clean_data_combined1 <- data_combined %>%
+  filter(country %in% c( "Armenia", "Albania", "Algeria", "Bangladesh", "Bolivia","India"))
+
+# Create the time series chart with facets for time period
+ggplot(clean_data_combined1, aes(x = time_period  , y = obs_value  , group = Population..total , color = "red")) +
+  geom_line() +
+  facet_wrap(~ country, ncol = 3) +
+  ggtitle("Time Series Chart of Observed Value for Country by Time Period") +
+  xlab("X Axis with Time Period 1990-2020 ") +
+  ylab("Y Axis with Obs-Value of Indicator") +
+  theme_bw()
+
+
+```
+
+![time series](Rplot-Time%20Series.png)
+
+The Analysis above, suggest pattern in relation to the result of Malnutrition in each country. To findout more about factors that have direct impact on malnutrition, we can analyse several other factors likes population and life expectancy of these countries to draw some new observations.
+
+## **The Other Important factors affecting Malnutrition**
+
+A scatter plot would be the best way to visualize the results. If there is a positive correlation between Population,Life-expectancy and malnutrition, it suggests that economic growth alone may not be enough to address malnutrition, and that other interventions may be needed
+
+### **Overview**
+
+The fourth visualization is a scatter plot that shows the relationship between a country's population and life expectancy, with the rate of malnutrition as a color-coded overlay. The plot reveals that countries with higher rates of malnutrition tend to have lower life expectancy and smaller populations. The data also shows a positive correlation between population and life expectancy, suggesting that higher population density is associated with greater access to healthcare and nutrition services.
+
+### **Visualization-04**
+
+```{r}
+#| code-fold: true
+#| code-summary: "CLICK TO SEE THE CODE"
+
+# Create the scatter plot with linear regression line
+ggplot(data_combined, aes(x = Life.expectancy.at.birth..total..years., y = Population..total, color = obs_value )) +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x, se = FALSE, color = "green") +
+  ggtitle("Scatter Plot of Population vs Life Expectancy by Observed Value for Country") +
+  xlab("Life Expectancy at birth") +
+  ylab("Population Total") +
+  theme_bw()
+
+```
+
+![Scatter](Rplot-popvs%20lifevsobs.png)
+
+Note:-
+
+1)  Press the Code button to check the Code
+
+2)  Switch the Theme to Dark/light mode from Top right Toggle switch

@@ -1,0 +1,115 @@
+---
+title: "UNICEF REPORT ON MALNUTRITION AROUND THE WORLD"
+author: "Akshay Sawant"
+format: html
+date: April 30 2023
+output: html_document
+toc: true
+toc_float: true
+highlight: zenburn
+execute: 
+  echo: true
+  warning: false
+  message: false
+  code-line-numbers: true
+theme:
+  dark: darkly
+  light: Litera
+html_document:
+  fig_width: 7
+  fig_height: 6
+html:
+    code-fold: true
+    code-summary: "Show the code"
+
+---
+
+# **UNICEF'S Data on  "Wasted, Overweight or Stunted" Indicator Report**
+
+## **Introduction**
+
+This report provides an overview of **UNICEF'S "Wasted, Overweight or Stunted"** indicator, which measures the prevalence of malnutrition among children under the age of five. This report includes four visualizations that showcase the data related to this indicator, along with an analysis of the data around the world.
+
+The "Wasted, Overweight or Stunted" indicator provides a comprehensive measure of malnutrition that takes into account both acute and chronic forms of malnutrition, as well as overnutrition. It is often used as an indicator of overall child health and well-being, as malnutrition can have serious long-term health effects on children, including impaired cognitive and physical development, increased risk of disease, and lower life expectancy.
+
+To better understand the data related to this indicator, several visualizations have been plotted to showcase the prevalence of malnutrition around the world.
+
+## **Top 20 Countries with the Highest Levels of Malnutrition**
+
+### **Overview**
+
+The first visualization shows the top 20 countries with the highest levels of malnutrition. The data reveals that the majority of these countries are located in Sub-Saharan Africa and South Asia. These regions also have the highest rates of poverty and the most limited access to basic healthcare and nutrition services.
+
+### **Results of Visualization-01 **
+
+- Niger
+- Malawi
+- Peru
+- Mali
+- Burkina Faso
+- Chad
+- Bangladesh
+- Tanzania, United Republic of
+- Rwanda
+- Nepal
+- Uganda
+- Nigeria
+- Central African Republic
+- Zambia
+- Senegal
+- Jamaica
+- Burundi
+- Mauritania
+- Guatemala
+- Yemen
+
+
+### **Visualization-01**
+
+```{r}
+#| code-fold: true
+#| code-summary: "CLICK TO SEE THE CODE"
+
+# Load the required libraries
+library(tidyverse)
+library(sf)
+library(rnaturalearth)
+library(lwgeom)
+library(dplyr)
+
+# Import the unicef_indicator_2.csv file
+data <- read_csv("unicef_indicator_2.csv")
+
+# Clean and transform the data
+clean_data <- data %>%
+  drop_na() %>%
+  filter(!is.na(obs_value) & obs_value >= 0)
+
+# Filter for the top 20 countries with the highest obs_value
+top_20 <- clean_data %>%
+  group_by(country) %>%
+  summarise(obs_value = sum(obs_value)) %>%
+  top_n(20, obs_value)
+
+# Load World Map dataset and make the geometry valid
+world_map <- rnaturalearth::ne_countries(scale = "medium", returnclass = "sf") %>%
+  st_make_valid()
+
+# Create a lookup table to map country names to ISO A3 codes and join with top_20
+top_20 <- top_20 %>%
+  left_join(world_map %>% select(iso_a3, name_long) %>% distinct(), by = c("country" = "name_long"))
+
+# Merge world_map and top_20 data frames
+merged_data <- left_join(world_map, top_20, by = "iso_a3")
+
+# Plot 20 countries with the highest obs_value
+world_map_chart <- ggplot() +
+  geom_sf(data = merged_data, aes(fill = obs_value), color = "white") +
+  scale_fill_continuous(low = "blue", high = "red", na.value = "lightgreen", name = "Obs Value") +
+  labs(title = "Top 20 Countries with the Highest Level of Malnutrition") +
+  theme_bw()
+
+#View the Map 
+world_map_chart
+
+```
